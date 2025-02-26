@@ -25,6 +25,7 @@ const checkUserCart = async (products) => {
       }
 
       const price = Number(response.data.data.calculatedPrice) || 0;
+      console.log(price, data.quantity);
       totalPrice += price * Number(data.quantity);
 
       productDetails.push({

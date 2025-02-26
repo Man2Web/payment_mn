@@ -10,7 +10,6 @@ const checkUser = async (token) => {
         },
       }
     );
-
     if (
       !response.data ||
       !response.data.confirmed ||

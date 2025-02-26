@@ -17,9 +17,11 @@ const SALT_INDEX = 1;
 const SALT_KEY = process.env.DEMO_SALT_KEY; // Set this properly
 const APP_BE_URL = process.env.BACKEND_URL; // Your backend
 const WEBSITE_URL = process.env.WEBSITE_URL; // Your website
+const DEMO_CLIENT_ID = process.env.DEMO_CLIENT_ID; // Set this properly;
 
 router.post("/", async (req, res) => {
   const { user, products, userAddress } = req.body.data;
+  console.log(products);
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -55,13 +57,12 @@ router.post("/", async (req, res) => {
       }
     );
     const amount = Number(totalPrice.toFixed(2)); // Ensure this is a valid number
-    let userId = "MUID123";
     let merchantTransactionId = transactionId;
-
+    console.log(amount);
     let normalPayLoad = {
       merchantId: MERCHANT_ID,
       merchantTransactionId: merchantTransactionId,
-      merchantUserId: userId,
+      merchantUserId: DEMO_CLIENT_ID,
       amount: amount * 100, // Converting to paise
       redirectUrl: `${APP_BE_URL}/payment/validate/${merchantTransactionId}`,
       redirectMode: "REDIRECT",
@@ -97,7 +98,6 @@ router.post("/", async (req, res) => {
         .status(200)
         .json({ url: response.data.data.instrumentResponse.redirectInfo.url });
     } catch (error) {
-      console.log(error.response);
       console.error(
         "PhonePe API Error:",
         error.response ? error.response.data : error
@@ -143,8 +143,9 @@ router.get("/validate/:merchantTransactionId", async function (req, res) {
       const transactionId = await getTransactionId(merchantTransactionId);
       const orderId = await updateOrderStatus(transactionId);
       await updateCart(orderId);
-      res.redirect(`${WEBSITE_URL}/bookingconfirmation`);
+      res.redirect(`${WEBSITE_URL}/bookingsuccess`);
     } else {
+      res.redirect(`${WEBSITE_URL}/bookingfailed`);
       res.json({
         success: false,
         status: "Payment Pending or Failed",

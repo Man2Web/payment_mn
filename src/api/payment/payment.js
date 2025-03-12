@@ -1,27 +1,23 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
-const checkUser = require("../modals/user/checkUser");
-const checkUserCart = require("../modals/user/checkCart");
+const checkUserCart = require("../../modals/user/checkCart");
 const axios = require("axios");
-const getTransactionId = require("../modals/order/getTransactionId");
-const updateOrderStatus = require("../modals/order/updateOrderStatus");
-const updateCart = require("../modals/user/updateCart");
-const getAuthToken = require("../modals/auth/getAuthToken");
-const initiate = require("../modals/payment/initiate");
+const getAuthToken = require("../../modals/auth/getAuthToken");
+const initiate = require("../../modals/payment/initiate");
+const checkCoupon = require("../../modals/coupon/checkCoupon");
+const calculateDiscount = require("../../modals/coupon/calculateDiscount");
 
 const router = express.Router();
 
 router.post("/", async (req, res) => {
-  const { user, products, userAddress } = req.body.data;
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
+  const { user, products, userAddress, userSelectedCoupon } = req.body.data;
+  const token = process.env.STRAPI_SERVICE_TOKEN;
   try {
-    const token = authHeader.split(" ")[1];
-    await checkUser(token);
     const { totalPrice, productDetails } = await checkUserCart(products);
+    const couponData = await checkCoupon(userSelectedCoupon, productDetails);
+    const discountResult = await calculateDiscount(couponData, totalPrice);
+    const discountAmount =
+      typeof discountResult === "number" ? 0 : discountResult.discountAmount;
     const transactionId = uuidv4().substring(0, 8);
     if (!user || !productDetails || !userAddress) {
       return res.status(400).json({ message: "Invalid request" });
@@ -36,18 +32,20 @@ router.post("/", async (req, res) => {
       {
         data: {
           totalPrice,
+          discountAmount,
           products: sanitizedProducts,
           userAddress,
           user,
           transactionId,
           orderStatus: false,
+          coupon: userSelectedCoupon?.id,
         },
       },
       {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    const amount = Number(totalPrice.toFixed(2)); // Ensure this is a valid number
+    const amount = Number((totalPrice - discountAmount).toFixed(2));
     const authToken = await getAuthToken();
     const data = await initiate(authToken, transactionId, amount);
     res.json({ ...data });

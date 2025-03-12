@@ -7,3 +7,8 @@ app.listen(port, () => {
   console.log(`Listening: http://localhost:${port}`);
   /* eslint-enable no-console */
 });
+
+// Prod
+// const serverless = require("serverless-http");
+// const app = require("./app");
+// module.exports.handler = serverless(app);

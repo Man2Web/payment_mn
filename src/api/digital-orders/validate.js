@@ -1,8 +1,7 @@
 const express = require("express");
-const status = require("../modals/payment/status");
-const getTransactionId = require("../modals/order/getTransactionId");
-const updateOrderStatus = require("../modals/order/updateOrderStatus");
-const updateCart = require("../modals/user/updateCart");
+const status = require("../../modals/payment/status");
+const getTransactionId = require("../../modals/digital-order/getTransactionId");
+const updateOrderStatus = require("../../modals/digital-order/updateOrderStatus");
 
 const router = express.Router();
 
@@ -14,19 +13,13 @@ router.get("/:merchantTransactionId", async function (req, res) {
   try {
     const data = await status(merchantTransactionId);
     const { state } = data;
+    const transactionId = await getTransactionId(merchantTransactionId);
     if (data && state === "COMPLETED") {
-      const transactionId = await getTransactionId(merchantTransactionId);
-      const orderId = await updateOrderStatus(transactionId);
-      await updateCart(orderId);
-      res.redirect(`${WEBSITE_URL}/bookingsuccess`);
+      await updateOrderStatus(transactionId, "Success");
     } else {
-      res.redirect(`${WEBSITE_URL}/bookingfailed`);
-      res.json({
-        success: false,
-        status: "Payment Pending or Failed",
-        data: response.data,
-      });
+      await updateOrderStatus(transactionId, "Failure");
     }
+    return res.redirect(`${WEBSITE_URL}/wallet`);
   } catch (error) {
     console.error(
       "Payment Status Check Error:",

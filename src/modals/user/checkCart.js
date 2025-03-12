@@ -29,6 +29,7 @@ const checkUserCart = async (products) => {
 
       productDetails.push({
         product: response.data.data.id,
+        categoryId: response.data.data.category.id,
         quantity: data.quantity,
         documentId: data.documentId,
         productPrice: price,

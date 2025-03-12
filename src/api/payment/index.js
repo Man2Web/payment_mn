@@ -3,7 +3,9 @@ const router = express.Router();
 const payment = require("./payment");
 const validate = require("./validate");
 
-router.use("/", payment);
+const authMiddleware = require("../../middlewares/auth");
+
+router.use("/", authMiddleware, payment);
 
 router.use("/validate", validate);
 

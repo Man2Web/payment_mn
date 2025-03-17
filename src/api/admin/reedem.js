@@ -2,65 +2,10 @@ const express = require("express");
 const router = express.Router();
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
-
-// Add OTP storage (in-memory)
-const otpStore = new Map();
-
-// Add OTP generation function
-function generateOTP() {
-  return uuidv4().substring(0, 6).toUpperCase();
-}
-
-// Add OTP validation function
-function validateOTP(phone, otp) {
-  const storedOTP = otpStore.get(phone);
-  if (!storedOTP) return false;
-
-  // Remove OTP after checking (one-time use)
-  otpStore.delete(phone);
-  return storedOTP === otp;
-}
-
-// Update getUserData function to use phone number instead of token
-async function getUserData(phone) {
-  const token = process.env.STRAPI_SERVICE_TOKEN;
-  try {
-    const response = await axios.get(`${process.env.STRAPI_URL}/users`, {
-      params: {
-        "filters[username][$eq]": phone,
-        "populate[digital_orders][populate][0]": "material_type",
-      },
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    console.log(response.data);
-    return response.data[0]; // Return first user from array
-  } catch (error) {
-    console.error("Error fetching user data:", error);
-    return null;
-  }
-}
-
-// Add function to fetch material types
-async function getMaterialTypes() {
-  try {
-    const response = await axios.get(
-      `${process.env.STRAPI_URL}/material-types`,
-      {
-        params: {
-          populate: "*",
-        },
-      }
-    );
-    return response.data.data.filter(
-      (material) => material.digitalOrder === true
-    );
-  } catch (error) {
-    console.error("Error fetching material types:", error);
-    return [];
-  }
-}
+const getUserData = require("../../modals/user/getUserData");
+const getDigitalMaterialsData = require("../../modals/material/getDigitalMaterialsData");
+const findUserByPhone = require("../../modals/user/findUserByPhone");
+const updateUserOTP = require("../../modals/user/updateUserOtp");
 
 // Update balance calculation function
 function calculateBalancesByMaterial(orders, materials) {
@@ -102,47 +47,6 @@ function calculateBalancesByMaterial(orders, materials) {
   return balances;
 }
 
-// Add redemption validation function
-function validateRedemption(balance, amount) {
-  return balance >= amount;
-}
-
-// Add function to find user by phone
-async function findUserByPhone(phone) {
-  try {
-    const response = await axios.get(`${process.env.STRAPI_URL}/users`, {
-      params: {
-        "filters[username][$eq]": phone,
-      },
-    });
-    return response.data[0];
-  } catch (error) {
-    console.error("Error finding user:", error);
-    return null;
-  }
-}
-
-// Add function to update user's OTP
-async function updateUserOTP(userId, otp) {
-  try {
-    const response = await axios.put(
-      `${process.env.STRAPI_URL}/users/${userId}`,
-      {
-        tOtp: otp,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.STRAPI_SERVICE_TOKEN}`,
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error updating user OTP:", error);
-    return null;
-  }
-}
-
 // Modify the router.get("/") handler to use phone instead of token
 router.get("/", async (req, res) => {
   const errorMessage = req.query.error;
@@ -153,9 +57,8 @@ router.get("/", async (req, res) => {
   if (req.session.userPhone) {
     // Changed from userToken to userPhone
     userData = await getUserData(req.session.userPhone);
-    materialTypes = await getMaterialTypes();
+    materialTypes = await getDigitalMaterialsData();
   }
-  console.log(userData);
   const authContent = `
     <div class="main-content">
       <div class="dashboard-header">
@@ -387,7 +290,7 @@ router.post("/generate-otp", async (req, res) => {
     }
 
     // Generate OTP
-    const otp = generateOTP();
+    const otp = uuidv4().substring(0, 6).toUpperCase();
 
     // Update user's OTP in database
     const updated = await updateUserOTP(user.id, otp);
@@ -453,7 +356,7 @@ router.post("/verify-otp", async (req, res) => {
 router.post("/redeem", async (req, res) => {
   const { material_type, amount } = req.body;
   const userData = await getUserData(req.session.userPhone); // Use phone instead of token
-  const materialTypes = await getMaterialTypes();
+  const materialTypes = await getDigitalMaterialsData();
   const balances = calculateBalancesByMaterial(
     userData.digital_orders,
     materialTypes
@@ -465,7 +368,7 @@ router.post("/redeem", async (req, res) => {
     (m) => m.material_type === material_type
   );
 
-  if (validateRedemption(balance, parseFloat(amount))) {
+  if (balance >= parseFloat(amount)) {
     try {
       // Generate a random transaction ID
       const transactionId = uuidv4().substring(0, 8);

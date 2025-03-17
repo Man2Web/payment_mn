@@ -18,7 +18,7 @@ const status = async (merchantTransactionId) => {
     );
     return response.data;
   } catch (error) {
-    console.error(error);
+    console.error(error.response.data);
     throw new Error("Failed to get Payment Status");
   }
 };

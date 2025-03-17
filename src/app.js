@@ -13,6 +13,7 @@ const api = require("./api");
 const order = require("./api/payment/index");
 const digitalOrder = require("./api/digital-orders/index");
 const admin = require("./api/admin/index");
+const schemes = require("./api/schemes/index");
 
 const app = express();
 
@@ -45,6 +46,8 @@ app.use("/payment", order);
 app.use("/digital-orders", digitalOrder);
 
 app.use("/admin", admin);
+
+app.use("/schemes", schemes);
 
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);

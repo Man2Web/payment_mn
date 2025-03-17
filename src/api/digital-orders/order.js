@@ -7,14 +7,16 @@ const getAuthToken = require("../../modals/auth/getAuthToken");
 const initiate = require("../../modals/payment/initiate");
 
 router.post("/", async (req, res) => {
-  const { user, materialType, grams, amount } = req.body;
+  const { user, materialType, grams } = req.body;
   const token = process.env.STRAPI_SERVICE_TOKEN;
   const transactionId = uuidv4().substring(0, 8);
-  if (!user || !materialType || !grams || !amount || req.user.id !== user)
+  if (!user || !materialType || !grams || req.user.id !== user)
     return res.status(401).json({ message: "Unauthorized" });
 
   try {
     const { id, price } = await getMaterialData(materialType);
+    const amount = parseFloat((grams * price).toFixed(2));
+    console.log(amount, price);
     axios.post(
       `${process.env.STRAPI_URL}/digital-orders`,
       {
